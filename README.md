@@ -153,6 +153,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 💾 Speichern: `Strg + O` → `Enter` &nbsp;|&nbsp; ❌ Schließen: `Strg + X`
 
+nano .env
+
+SECRET_KEY=dein-geheimer-schlüssel-aus-deinem-lokalen-pc-hier-einfügen
+DEBUG=False
+
+---
+💾 Speichern: `Strg + O` → `Enter` &nbsp;|&nbsp; ❌ Schließen: `Strg + X`
 ---
 
 ## 4 · Migrationen, Static Files & Gast-Accounts
