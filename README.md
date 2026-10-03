@@ -13,7 +13,7 @@
 
 # 🚀 Server & Deployment Playbook
 
-**Von `git push` bis „läuft live" – Django-Backend + Frontend in 7 Schritten**
+**Von `git push` bis „läuft live" – Django-Backend + Frontend, Schritt für Schritt**
 
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-REST-092E20?style=for-the-badge&logo=django&logoColor=white)
@@ -21,7 +21,7 @@
 ![Nginx](https://img.shields.io/badge/Nginx-Reverse_Proxy-009639?style=for-the-badge&logo=nginx&logoColor=white)
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-Cloud_Server-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 
-[🌐 Live-API](https://api.marioramirez.de/api/base-info/) · [🖥️ Projekte](https://www.marioramirez.de/projekte/) · [🚨 Notfall-Befehle](#-notfall-befehle)
+[🌐 Projekte](https://www.marioramirez.de/projekte/) · [🚨 Notfall-Befehle](#-notfall-befehle)
 
 </div>
 
@@ -32,11 +32,12 @@
 ```mermaid
 flowchart LR
     U[🌍 Browser] -->|HTTPS| FE[🎨 Frontend<br/>Hostinger]
-    FE -->|fetch API| NG[Nginx<br/>api.marioramirez.de]
+    FE -->|fetch API| NG[Nginx + Certbot<br/>api‹nummer›.marioramirez.de]
     NG -->|Unix-Socket| GU[Gunicorn]
     GU --> DJ[Django]
     GH[(GitHub<br/>main)] -.->|git pull| DJ
     SD[systemd] -.->|startet & überwacht| GU
+    DNS[netcup DNS<br/>A-Record] -.->|zeigt auf Server| NG
 ```
 
 ## 📌 Standard-Struktur & URLs
@@ -44,12 +45,14 @@ flowchart LR
 | | |
 |:--|:--|
 | 🎨 **Frontend** | `https://www.marioramirez.de/projekte/<frontend-ordner>/` (Hostinger / Webhosting) |
-| ⚙️ **Backend-API** | `https://api<"nummer">.marioramirez.de/api/` (Ubuntu Cloud Server `213.160.75.13`) |
+| ⚙️ **Backend-API** | `https://api<nummer>.marioramirez.de/api/` (Ubuntu Cloud Server `213.160.75.13`) |
 | 🔑 **SSH-Zugang** | `ssh marito1010@213.160.75.13` |
-| 📂 **Projektpfad** | `/var/www/projekte/<projektname>_backend/` |
+| 📂 **Projektpfad** | `/var/www/projekte/<projektname>-backend/` |
+| ⚙️ **Dienstname** | `<projektname>-backend` (systemd + Nginx + Socket) |
 
 > [!TIP]
-> Ersetze überall `<projektname>` durch den Namen deines Projekts und `<frontend-ordner>` durch den Ordner auf Hostinger.
+> Ersetze überall `<projektname>` durch den Namen deines Projekts, `<nummer>` durch die Subdomain-Nummer (z. B. `api2`, `api3`) und `<frontend-ordner>` durch den Ordner auf Hostinger.
+> Der Name `<projektname>-backend` bleibt in **allen** Schritten identisch (Ordner, Service, Nginx, Socket).
 
 ---
 
@@ -57,13 +60,34 @@ flowchart LR
 
 | # | Schritt | Wo |
 |:-:|:--|:--|
+| 0 | [Subdomain anlegen (DNS)](#0--subdomain-anlegen-netcup-ccp) | 🌐 netcup |
 | 1 | [Lokales Backend pushen](#1--lokales-backend-vorbereiten--pushen) | 💻 PC |
 | 2 | [Repository klonen & einrichten](#2--auf-dem-server-repository-klonen--einrichten) | ☁️ Server |
-| 3 | [`settings.py` anpassen](#3--django-settingspy-anpassen) | ☁️ Server |
+| 3 | [`settings.py` & `.env` anpassen](#3--django-settingspy-anpassen) | ☁️ Server |
 | 4 | [Migrationen, Static Files & Accounts](#4--migrationen-static-files--gast-accounts) | ☁️ Server |
 | 5 | [Gunicorn-Service einrichten](#5--gunicorn-systemd-service) | ☁️ Server |
-| 6 | [Nginx konfigurieren](#6--nginx-konfigurieren) | ☁️ Server |
+| 6 | [Nginx & SSL einrichten](#6--nginx-konfigurieren--ssl-einrichten) | ☁️ Server |
 | 7 | [Frontend anbinden & hochladen](#7--frontend-anbinden--hochladen) | 🎨 Hostinger |
+
+---
+
+## 0 · Subdomain anlegen (netcup CCP)
+
+> [!IMPORTANT]
+> Ohne A-Record schlägt Certbot in Schritt 6 sofort fehl. Danach ein paar Minuten warten, bis der Eintrag aktiv ist.
+
+1. Im netcup CCP einloggen (`customercontrolpanel.de`).
+2. **Domains** ➔ Lupe bei `marioramirez.de` ➔ **DNS**.
+3. Neuen Eintrag hinzufügen:
+
+| Feld | Wert |
+|:--|:--|
+| **Hostname** | `api<nummer>` (z. B. `api2`, `api3`) |
+| **Typ** | `A` |
+| **Ziel** | `213.160.75.13` |
+| **TTL** | `300` |
+
+4. **Zonenrevision speichern**.
 
 ---
 
@@ -91,8 +115,8 @@ In das Verzeichnis wechseln und klonen:
 
 ```bash
 cd /var/www/projekte
-git clone <GITHUB_REPO_URL> <projektname>_backend
-cd <projektname>_backend
+git clone <GITHUB_REPO_URL> <projektname>-backend
+cd <projektname>-backend
 ```
 
 Virtuelle Umgebung anlegen und Abhängigkeiten installieren:
@@ -119,7 +143,7 @@ nano core/settings.py
 
 ```python
 ALLOWED_HOSTS = [
-    'api<"nummer">.marioramirez.de',
+    'api<nummer>.marioramirez.de',
     'marioramirez.de',
     'www.marioramirez.de',
     '213.160.75.13',
@@ -144,22 +168,31 @@ CORS_ALLOWED_ORIGINS = [
 
 **Statische Pfade prüfen**
 
+> [!NOTE]
+> `STATIC_ROOT` heißt `staticfiles` – genau so wird der Ordner in Nginx (Schritt 6) ausgeliefert.
+
 ```python
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'static'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 ```
 
 💾 Speichern: `Strg + O` → `Enter` &nbsp;|&nbsp; ❌ Schließen: `Strg + X`
 
-nano .env
+**`.env` anlegen**
 
+```bash
+nano .env
+```
+
+```env
 SECRET_KEY=dein-geheimer-schlüssel-aus-deinem-lokalen-pc-hier-einfügen
 DEBUG=False
+```
 
----
 💾 Speichern: `Strg + O` → `Enter` &nbsp;|&nbsp; ❌ Schließen: `Strg + X`
+
 ---
 
 ## 4 · Migrationen, Static Files & Gast-Accounts
@@ -168,6 +201,7 @@ DEBUG=False
 python manage.py makemigrations
 python manage.py migrate
 python manage.py collectstatic --noinput
+python manage.py createsuperuser
 ```
 
 <details>
@@ -207,87 +241,100 @@ print('Accounts erfolgreich eingerichtet!')
 Service-Datei anlegen:
 
 ```bash
-sudo nano /etc/systemd/system/<projektname>.service
+sudo nano /etc/systemd/system/<projektname>-backend.service
 ```
 
 Inhalt:
 
 ```ini
 [Unit]
-Description=Gunicorn daemon for <projektname>
+Description=Gunicorn daemon for <projektname>-backend
 After=network.target
 
 [Service]
 User=marito1010
 Group=www-data
-WorkingDirectory=/var/www/projekte/<projektname>_backend
-ExecStart=/var/www/projekte/<projektname>_backend/venv/bin/gunicorn \
+WorkingDirectory=/var/www/projekte/<projektname>-backend
+ExecStart=/var/www/projekte/<projektname>-backend/venv/bin/gunicorn \
           --access-logfile - \
           --workers 3 \
-          --bind unix:/var/www/projekte/<projektname>_backend/<projektname>.sock \
+          --bind unix:/var/www/projekte/<projektname>-backend/<projektname>-backend.sock \
           core.wsgi:application
 
 [Install]
 WantedBy=multi-user.target
 ```
----
+
 💾 Speichern: `Strg + O` → `Enter` &nbsp;|&nbsp; ❌ Schließen: `Strg + X`
----
 
 Dienst aktivieren und starten:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl start <projektname>
-sudo systemctl enable <projektname>
-sudo systemctl status <projektname>
+sudo systemctl start <projektname>-backend
+sudo systemctl enable <projektname>-backend
+sudo systemctl status <projektname>-backend --no-pager
 ```
 
 ---
 
-## 6 · Nginx konfigurieren
+## 6 · Nginx konfigurieren & SSL einrichten
+
+> [!IMPORTANT]
+> Reihenfolge einhalten: **1. Config anlegen → 2. Symlink → 3. Nginx testen → 4. Certbot.**
+> Den SSL-Block **nicht** selbst schreiben – Certbot trägt ihn automatisch ein. Das Zertifikat existiert vorher noch nicht, Nginx würde sonst nicht starten.
+
+Nginx-Konfigurationsdatei erstellen:
 
 ```bash
-sudo nano /etc/nginx/sites-available/<projektname>
+sudo nano /etc/nginx/sites-available/<projektname>-backend
 ```
 
-Routing-Block:
+Inhalt (Basis-Block ohne SSL):
 
 ```nginx
 server {
-    server_name api<"nummer">.marioramirez.de;
+    server_name api<nummer>.marioramirez.de;
 
-    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /favicon.ico {
+        access_log off;
+        log_not_found off;
+    }
 
     location /static/ {
-        root /var/www/projekte/<projektname>_backend;
+        alias /var/www/projekte/<projektname>-backend/staticfiles/;
     }
 
     location /media/ {
-        root /var/www/projekte/<projektname>_backend;
+        alias /var/www/projekte/<projektname>-backend/media/;
     }
 
     location / {
         include proxy_params;
-        proxy_pass http://unix:/var/www/projekte/<projektname>_backend/<projektname>.sock;
+        proxy_pass http://unix:/var/www/projekte/<projektname>-backend/<projektname>-backend.sock;
     }
 }
 ```
 
-Aktivieren und prüfen:
+Aktivieren und Nginx neu laden:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/<projektname> /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+sudo ln -s /etc/nginx/sites-available/<projektname>-backend /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
----
-Teste direkt per Terminal, ob Kanmind anspringt:
-curl -i https://api.marioramirez.de/
----
-Schritt 4: SSL-Zertifikat für api2 holen
-Bash
-sudo certbot --nginx -d api2.marioramirez.de
+
+SSL-Zertifikat via Certbot abrufen:
+
+```bash
+sudo certbot --nginx -d api<nummer>.marioramirez.de
+```
+
+Erreichbarkeit prüfen:
+
+```bash
+curl -i https://api<nummer>.marioramirez.de/admin/
+```
+
 ---
 
 ## 7 · Frontend anbinden & hochladen
@@ -295,8 +342,8 @@ sudo certbot --nginx -d api2.marioramirez.de
 **`config.js` im Frontend:**
 
 ```javascript
-const API_BASE_URL = 'https://api<"nummer">.marioramirez.de/api/';
-const STATIC_BASE_URL = 'https://api<"nummer">.marioramirez.de/';
+const API_BASE_URL = 'https://api<nummer>.marioramirez.de/api/';
+const STATIC_BASE_URL = 'https://api<nummer>.marioramirez.de/';
 ```
 
 **Dateien hochladen:** per FileZilla / FTP in das Hostinger-Verzeichnis
@@ -316,11 +363,14 @@ public_html/projekte/<frontend-ordner>/
 
 | 🔥 Problem | 💻 Befehl |
 |:--|:--|
-| Code in `settings.py` oder View geändert | `sudo systemctl restart <projektname>` |
-| HTTP 400 Bad Request / Fehlersuche | `sudo journalctl -u <projektname> -n 30 --no-pager` |
-| Neuen Stand von GitHub auf Server ziehen | `git pull origin main && sudo systemctl restart <projektname>` |
+| Code in `settings.py` oder View geändert | `sudo systemctl restart <projektname>-backend` |
+| HTTP 400 Bad Request / Fehlersuche | `sudo journalctl -u <projektname>-backend -n 30 --no-pager` |
+| Neuen Stand von GitHub auf Server ziehen | `git pull origin main && sudo systemctl restart <projektname>-backend` |
 | Nginx-Syntax testen | `sudo nginx -t` |
-| API im Terminal prüfen | `curl -i https://api.marioramirez.de/api/base-info/` |
+| API im Terminal prüfen | `curl -i https://api<nummer>.marioramirez.de/api/base-info/` |
+
+> [!TIP]
+> `git pull` immer im Projektordner ausführen: `cd /var/www/projekte/<projektname>-backend`
 
 ---
 
