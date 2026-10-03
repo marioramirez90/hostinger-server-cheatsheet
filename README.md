@@ -281,7 +281,10 @@ sudo ln -s /etc/nginx/sites-available/<projektname> /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
-
+---
+Teste direkt per Terminal, ob Kanmind anspringt:
+curl -i https://api.marioramirez.de/
+---
 ---
 
 ## 7 · Frontend anbinden & hochladen
