@@ -44,7 +44,7 @@ flowchart LR
 | | |
 |:--|:--|
 | 🎨 **Frontend** | `https://www.marioramirez.de/projekte/<frontend-ordner>/` (Hostinger / Webhosting) |
-| ⚙️ **Backend-API** | `https://api.marioramirez.de/api/` (Ubuntu Cloud Server `213.160.75.13`) |
+| ⚙️ **Backend-API** | `https://api<"nummer">.marioramirez.de/api/` (Ubuntu Cloud Server `213.160.75.13`) |
 | 🔑 **SSH-Zugang** | `ssh marito1010@213.160.75.13` |
 | 📂 **Projektpfad** | `/var/www/projekte/<projektname>_backend/` |
 
@@ -119,7 +119,7 @@ nano core/settings.py
 
 ```python
 ALLOWED_HOSTS = [
-    'api.marioramirez.de',
+    'api<"nummer">.marioramirez.de',
     'marioramirez.de',
     'www.marioramirez.de',
     '213.160.75.13',
@@ -255,7 +255,7 @@ Routing-Block:
 
 ```nginx
 server {
-    server_name api.marioramirez.de;
+    server_name api<"nummer">.marioramirez.de;
 
     location = /favicon.ico { access_log off; log_not_found off; }
 
@@ -292,8 +292,8 @@ curl -i https://api.marioramirez.de/
 **`config.js` im Frontend:**
 
 ```javascript
-const API_BASE_URL = 'https://api.marioramirez.de/api/';
-const STATIC_BASE_URL = 'https://api.marioramirez.de/';
+const API_BASE_URL = 'https://api<"nummer">.marioramirez.de/api/';
+const STATIC_BASE_URL = 'https://api<"nummer">.marioramirez.de/';
 ```
 
 **Dateien hochladen:** per FileZilla / FTP in das Hostinger-Verzeichnis
