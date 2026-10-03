@@ -285,6 +285,9 @@ sudo systemctl reload nginx
 Teste direkt per Terminal, ob Kanmind anspringt:
 curl -i https://api.marioramirez.de/
 ---
+Schritt 4: SSL-Zertifikat für api2 holen
+Bash
+sudo certbot --nginx -d api2.marioramirez.de
 ---
 
 ## 7 · Frontend anbinden & hochladen
