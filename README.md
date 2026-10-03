@@ -230,6 +230,9 @@ ExecStart=/var/www/projekte/<projektname>_backend/venv/bin/gunicorn \
 [Install]
 WantedBy=multi-user.target
 ```
+---
+💾 Speichern: `Strg + O` → `Enter` &nbsp;|&nbsp; ❌ Schließen: `Strg + X`
+---
 
 Dienst aktivieren und starten:
 
